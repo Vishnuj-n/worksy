@@ -1,7 +1,17 @@
-package main
+package app
 
 import (
 	"context"
+
+	"focusplay/internal/domain"
+	"focusplay/internal/infra/events"
+	"focusplay/internal/infra/storage"
+	"focusplay/internal/services/audio"
+	"focusplay/internal/services/persistence"
+	"focusplay/internal/services/profile"
+	"focusplay/internal/services/settings"
+	"focusplay/internal/services/stats"
+	"focusplay/internal/services/timer"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -10,64 +20,61 @@ import (
 // It owns all services and exposes bound methods to the JS frontend.
 type App struct {
 	ctx         context.Context
-	profiles    *ProfileManager
-	persistence *PersistenceService
-	timer       *TimerService
-	audio       *AudioService
-	settings    *SettingsService
-	stats       *StatsService
+	profiles    *profile.Service
+	persistence *persistence.Service
+	timer       *timer.Service
+	audio       *audio.Service
+	settings    *settings.Service
+	stats       *stats.Service
 }
 
-// NewApp creates and wires up all services.
-func NewApp() *App {
-	ps := NewPersistenceService()
+// New creates and wires up all services.
+func New() *App {
+	dir := storage.DataDir()
+	ps := persistence.New(dir)
 	return &App{
-		profiles:    NewProfileManager(),
+		profiles:    profile.New(dir),
 		persistence: ps,
-		timer:       NewTimerService(ps),
-		audio:       NewAudioService(),
-		settings:    NewSettingsService(),
-		stats:       NewStatsService(),
+		timer:       timer.New(ps),
+		audio:       audio.New(),
+		settings:    settings.New(dir),
+		stats:       stats.New(dir),
 	}
 }
 
-// startup is called by Wails after the window is ready.
-func (a *App) startup(ctx context.Context) {
+// Startup is called by Wails after the window is ready.
+func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
-	a.timer.SetContext(ctx)
-	a.audio.SetContext(ctx)
-	// Pre-load profiles into cache
-	a.profiles.LoadProfiles()
+	e := events.NewWailsEmitter(ctx)
+	a.timer.SetEmitter(e)
+	a.audio.SetEmitter(e)
+	a.profiles.Load()
 }
 
 // ── Profile methods (bound to JS) ───────────────────────────────────────────
 
-func (a *App) LoadProfiles() []Profile {
-	return a.profiles.LoadProfiles()
+func (a *App) LoadProfiles() []domain.Profile {
+	return a.profiles.Load()
 }
 
-func (a *App) SaveProfile(p Profile) error {
-	return a.profiles.SaveProfile(p)
+func (a *App) SaveProfile(p domain.Profile) error {
+	return a.profiles.Save(p)
 }
 
-func (a *App) GetProfileByID(id string) *Profile {
-	return a.profiles.GetProfileByID(id)
+func (a *App) GetProfileByID(id string) *domain.Profile {
+	return a.profiles.GetByID(id)
 }
 
 func (a *App) DeleteProfile(id string) error {
-	return a.profiles.DeleteProfile(id)
+	return a.profiles.Delete(id)
 }
 
 // ── File / folder pickers (bound to JS) ─────────────────────────────────────
 
-// PickMusicFile opens a native file-open dialog filtered to MP3 files.
-// Returns the selected path, or "" if cancelled.
 func (a *App) PickMusicFile() string {
 	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Select MP3 file",
-		Filters: []runtime.FileFilter{
-			{DisplayName: "MP3 Audio (*.mp3)", Pattern: "*.mp3"},
-		},
+		Title:   "Select MP3 file",
+		Filters: []runtime.FileFilter{{DisplayName: "MP3 Audio (*.mp3)", Pattern: "*.mp3"}},
 	})
 	if err != nil {
 		return ""
@@ -75,8 +82,6 @@ func (a *App) PickMusicFile() string {
 	return path
 }
 
-// PickMusicFolder opens a native folder-select dialog.
-// Returns the selected folder path, or "" if cancelled.
 func (a *App) PickMusicFolder() string {
 	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "Select music folder",
@@ -89,9 +94,8 @@ func (a *App) PickMusicFolder() string {
 
 // ── Session persistence (bound to JS) ───────────────────────────────────────
 
-// CheckResumeSession returns a saved SessionState if one exists, or nil.
-func (a *App) CheckResumeSession() *SessionState {
-	return a.persistence.LoadSessionState()
+func (a *App) CheckResumeSession() *domain.SessionState {
+	return a.persistence.Load()
 }
 
 // ── Timer methods (bound to JS) ─────────────────────────────────────────────
@@ -100,7 +104,7 @@ func (a *App) StartTimer(profileID string, durationSec int) {
 	a.timer.Start(profileID, durationSec)
 }
 
-func (a *App) ResumeTimer(state SessionState) {
+func (a *App) ResumeTimer(state domain.SessionState) {
 	a.timer.Resume(state)
 }
 
@@ -134,29 +138,26 @@ func (a *App) SetVolume(v int) {
 	a.audio.SetVolume(v)
 }
 
-func (a *App) GetAudioState() AudioStatePayload {
+func (a *App) GetAudioState() domain.AudioStatePayload {
 	return a.audio.GetState()
 }
 
-// ── Stats methods (bound to JS) ────────────────────────────────────────────────
+// ── Stats methods (bound to JS) ─────────────────────────────────────────────
 
-// GetStats returns today's session count and current streak.
-func (a *App) GetStats() StatsData {
+func (a *App) GetStats() domain.StatsData {
 	return a.stats.GetStats()
 }
 
-// RecordSessionComplete should be called by JS when a timer finishes naturally.
-// Returns the updated stats so the frontend can update immediately.
-func (a *App) RecordSessionComplete() StatsData {
+func (a *App) RecordSessionComplete() domain.StatsData {
 	return a.stats.RecordSessionComplete()
 }
 
 // ── Settings methods (bound to JS) ──────────────────────────────────────────
 
-func (a *App) GetSettings() Settings {
-	return a.settings.GetSettings()
+func (a *App) GetSettings() domain.Settings {
+	return a.settings.Get()
 }
 
-func (a *App) SaveSettings(s Settings) error {
-	return a.settings.SaveSettings(s)
+func (a *App) SaveSettings(s domain.Settings) error {
+	return a.settings.Save(s)
 }

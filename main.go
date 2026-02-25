@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 
+	"focusplay/internal/app"
+
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -12,10 +14,8 @@ import (
 var assets embed.FS
 
 func main() {
-	// Create an instance of the app structure
-	app := NewApp()
+	a := app.New()
 
-	// Create application with options
 	err := wails.Run(&options.App{
 		Title:            "FocusPlay",
 		Width:            480,
@@ -27,9 +27,9 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		OnStartup: app.startup,
+		OnStartup: a.Startup,
 		Bind: []interface{}{
-			app,
+			a,
 		},
 	})
 
