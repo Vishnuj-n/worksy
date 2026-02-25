@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>FocusPlay</title>
+    <link rel="stylesheet" href="./src/style.css"/>
+</head>
+<body>
+
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <!-- Main card -->
+  <div class="card" id="mainCard">
+    <div class="top-bar">
+      <div class="app-title">FocusPlay</div>
+      <div class="top-actions">
+        <button class="icon-btn" id="openProfiles" title="Manage Profiles">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="openSettings" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="resume-banner" id="resumeBanner" style="display:none">
+      <span id="resumeText">Previous session found</span>
+      <button class="resume-btn" id="resumeBtn">Resume</button>
+    </div>
+
+    <div class="profile-row">
+      <span class="profile-label">Profile</span>
+      <select class="profile-select" id="profileSelect"></select>
+    </div>
+
+    <div class="timer-wrap">
+      <div class="timer-label">Remaining</div>
+      <div class="timer" id="timerDisplay">25:00</div>
+    </div>
+
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="startBtn">&#9654; Start</button>
+      <button class="btn btn-secondary" id="skipBtn">&#9197; Skip</button>
+      <button class="btn btn-danger" id="stopBtn">&#9632; Stop</button>
+    </div>
+
+    <div class="audio-row">
+      <div class="audio-dot" id="audioDot"></div>
+      <div class="audio-info">
+        <div class="audio-track" id="trackName">No audio</div>
+        <div class="audio-sub" id="audioSub">&#8212;</div>
+      </div>
+      <div class="volume-wrap">
+        <span class="volume-icon">&#128265;</span>
+        <input type="range" id="volumeSlider" min="0" max="100" value="70" title="Volume"/>
+      </div>
+    </div>
+
+    <div class="session-info">
+      <span>Sessions today: <strong id="sessionCount">&#8212;</strong></span>
+      <span class="badge" id="modeBadge">&#9679; Focus</span>
+      <span>Streak: <strong id="streakCount">&#8212;</strong></span>
+    </div>
+  </div>
+
+  <!-- Profile Manager Panel -->
+  <div class="side-panel" id="profilePanel">
+    <div class="panel-header">
+      <span class="panel-title">Profiles</span>
+      <button class="icon-btn close-btn" id="closeProfiles">&#10005;</button>
+    </div>
+    <button class="add-btn" id="newProfileBtn">+ New Profile</button>
+    <div class="profile-list" id="profileList"></div>
+
+    <div class="profile-form" id="profileForm" style="display:none">
+      <div class="form-title" id="formTitle">New Profile</div>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="pfName" placeholder="e.g. Deep Work" maxlength="40"/>
+      </div>
+      <div class="form-group">
+        <label>Duration (minutes)</label>
+        <input type="number" id="pfDuration" min="1" max="480" value="25"/>
+      </div>
+      <div class="form-group">
+        <label>Music</label>
+        <div class="music-picker">
+          <input type="text" id="pfMusicPath" placeholder="No music" readonly/>
+          <button class="pill-btn" id="pickFile">File</button>
+          <button class="pill-btn" id="pickFolder">Folder</button>
+          <button class="pill-btn danger-pill" id="clearMusic">&#10005;</button>
+        </div>
+      </div>
+      <div class="form-group toggle-row">
+        <label>Shuffle folder</label>
+        <label class="toggle">
+          <input type="checkbox" id="pfShuffle"/>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary small-btn" id="saveProfileBtn">Save</button>
+        <button class="btn btn-secondary small-btn" id="cancelProfileBtn">Cancel</button>
+      </div>
+      <input type="hidden" id="pfEditId"/>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div class="side-panel" id="settingsPanel">
+    <div class="panel-header">
+      <span class="panel-title">Settings</span>
+      <button class="icon-btn close-btn" id="closeSettings">&#10005;</button>
+    </div>
+    <div class="settings-list">
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Default Volume</div>
+          <div class="setting-desc">Starting volume for every session</div>
+        </div>
+        <input type="range" id="stVolume" min="0" max="100" value="70"/>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Auto-start audio</div>
+          <div class="setting-desc">Play music when timer starts</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="stAutoAudio" checked/><span class="slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Notify on complete</div>
+          <div class="setting-desc">OS notification when session ends</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="stNotify" checked/><span class="slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Auto-start next session</div>
+          <div class="setting-desc">Begin next after completion</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="stAutoNext"/><span class="slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Minimize to tray</div>
+          <div class="setting-desc">Hide window to tray on close</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="stMinTray"/><span class="slider"></span></label>
+      </div>
+    </div>
+    <button class="add-btn save-settings-btn" id="saveSettingsBtn">Save Settings</button>
+    <div class="settings-saved" id="settingsSaved" style="display:none">&#10003; Saved</div>
+  </div>
+
+  <!-- Backdrop -->
+  <div class="overlay" id="overlay"></div>
+
+  <script src="./src/main.js" type="module"></script>
+</body>
+</html>
