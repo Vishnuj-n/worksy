@@ -17,3 +17,14 @@ to this in your browser, and you can call your Go code from devtools.
 ## Building
 
 To build a redistributable, production mode package, use `wails build`.
+## Documentation
+
+Project documentation and maintainer notes are in the `docs/` directory. Key docs:
+
+- `docs/MAINTAINER.md`: recent maintainer actions and notes.
+- `docs/INSTALLATION.md`: platform-specific installation instructions.
+- `docs/USAGE.md`: basic usage and troubleshooting.
+- `docs/CONTRIBUTING.md`: how to contribute.
+- `docs/CHANGELOG.md`: change history.
+
+Please read `docs/MAINTAINER.md` for a summary of recent fixes (app output filename, uninstaller cleanup, and schema removal).
