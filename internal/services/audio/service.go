@@ -112,12 +112,16 @@ func (s *Service) PlayShuffleFolder(folder string) {
 // Stop halts all playback immediately.
 func (s *Service) Stop() {
 	s.mu.Lock()
-	if s.stopCh != nil {
-		close(s.stopCh)
-		s.stopCh = nil
-	}
+	ch := s.stopCh
+	s.stopCh = nil
 	s.volCtrl = nil
 	s.mu.Unlock()
+
+	// Close the stop channel outside the lock so goroutines can exit.
+	if ch != nil {
+		close(ch)
+	}
+	// Clear any buffered audio in the speaker.
 	speaker.Clear()
 	s.emitState(domain.AudioStopped, "", "")
 }
@@ -152,6 +156,13 @@ func (s *Service) GetState() domain.AudioStatePayload {
 // ── internal ─────────────────────────────────────────────────────────────────
 
 func (s *Service) playFile(path string, stopCh chan struct{}) error {
+	// Bail out early if stop was already requested.
+	select {
+	case <-stopCh:
+		return nil
+	default:
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -176,6 +187,13 @@ func (s *Service) playFile(path string, stopCh chan struct{}) error {
 	}
 	s.volCtrl = vol
 	s.mu.Unlock()
+
+	// Check if stop was requested before starting playback
+	select {
+	case <-stopCh:
+		return nil
+	default:
+	}
 
 	done := make(chan struct{})
 	speaker.Play(beep.Seq(vol, beep.Callback(func() {

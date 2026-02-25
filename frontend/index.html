@@ -22,6 +22,11 @@
             <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
           </svg>
         </button>
+        <button class="icon-btn" id="openMini" title="Mini timer (M)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+          </svg>
+        </button>
         <button class="icon-btn" id="openSettings" title="Settings">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"/>
@@ -202,6 +207,18 @@
     </div>
     <button class="add-btn save-settings-btn" id="saveSettingsBtn">Save Settings</button>
     <div class="settings-saved" id="settingsSaved" style="display:none">&#10003; Saved</div>
+  </div>
+
+  <!-- Mini timer widget -->
+  <div class="mini-widget" id="miniWidget" style="display:none">
+    <div class="mini-drag" id="miniDrag"></div>
+    <div class="mini-badge" id="miniBadge">● Work</div>
+    <div class="mini-time" id="miniTime">25:00</div>
+    <div class="mini-controls">
+      <button class="mini-btn" id="miniPlayPause" title="Play / Pause">▶</button>
+      <button class="mini-btn" id="miniExpand" title="Expand to full window">⛶</button>
+      <button class="mini-btn mini-btn-close" id="miniClose" title="Stop &amp; close">✕</button>
+    </div>
   </div>
 
   <!-- Backdrop -->

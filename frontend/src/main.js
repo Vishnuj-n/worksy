@@ -10,6 +10,11 @@ import {
 } from '../wailsjs/go/app/App';
 
 import { EventsOn } from '../wailsjs/runtime/runtime';
+import {
+  WindowGetSize, WindowSetSize, WindowSetMinSize,
+  WindowGetPosition, WindowSetPosition,
+  WindowSetAlwaysOnTop
+} from '../wailsjs/runtime/runtime';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const timerEl        = document.getElementById('timerDisplay');
@@ -43,6 +48,14 @@ const pfBreakShuffle   = document.getElementById('pfBreakShuffle');
 const pfIsDefault      = document.getElementById('pfIsDefault');
 const modeBadge        = document.getElementById('modeBadge');
 
+// Mini widget
+const miniWidget   = document.getElementById('miniWidget');
+const miniTime     = document.getElementById('miniTime');
+const miniBadge    = document.getElementById('miniBadge');
+const miniPlayPause = document.getElementById('miniPlayPause');
+const miniExpand   = document.getElementById('miniExpand');
+const miniClose    = document.getElementById('miniClose');
+
 // Settings panel
 const settingsPanel  = document.getElementById('settingsPanel');
 const stVolume       = document.getElementById('stVolume');
@@ -62,6 +75,8 @@ let isRunning    = false;
 let savedSession  = null;
 let sessionType   = 'work'; // 'work' | 'break'
 let activeProfile = null;   // currently running profile
+let isMiniMode    = false;  // window is in compact mini-timer mode
+let savedWindowState = null; // { width, height, x, y } before entering mini mode
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(s) {
@@ -80,6 +95,7 @@ function setRunningUI(running) {
   isRunning = running;
   startBtn.textContent       = running ? 'Pause' : 'Start';
   startBtn.style.background  = running ? 'rgba(255,180,50,0.55)' : '';
+  miniPlayPause.textContent  = running ? '\u23F8' : '\u25B6';
 }
 
 // ── Panel helpers ─────────────────────────────────────────────────────────────
@@ -290,6 +306,10 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
 EventsOn('timerTicked', (data) => {
   remainSec = data.remainingSec;
   updateTimerUI(remainSec, totalSec);
+  // sync mini widget in both overlay and mini-mode
+  if (isMiniMode || miniWidget.style.display !== 'none') {
+    miniTime.textContent = fmt(remainSec);
+  }
 });
 
 EventsOn('timerCompleted', async () => {
@@ -374,9 +394,12 @@ async function startBreak(profile) {
   updateModeBadge();
   await StartTimer(profile.id + '-break', profile.breakDurationSec).catch(console.error);
   if (settings.autoStartAudio !== false) {
-    if (profile.breakMusicPath) {
-      if (profile.breakShuffle) await PlayShuffleFolder(profile.breakMusicPath).catch(console.error);
-      else                      await PlayLooping(profile.breakMusicPath).catch(console.error);
+    // Use break music if set, otherwise fall back to work music
+    const musicPath = profile.breakMusicPath || profile.musicPath;
+    const shuffle   = profile.breakMusicPath ? profile.breakShuffle : profile.shuffle;
+    if (musicPath) {
+      if (shuffle) await PlayShuffleFolder(musicPath).catch(console.error);
+      else         await PlayLooping(musicPath).catch(console.error);
     } else {
       await StopAudio().catch(console.error);
     }
@@ -392,11 +415,91 @@ function updateModeBadge() {
   if (sessionType === 'break') {
     modeBadge.textContent = '\u25CF Break';
     modeBadge.className = 'badge is-break';
+    miniBadge.textContent = '\u25CF Break';
+    miniBadge.className = 'mini-badge is-break';
   } else {
     modeBadge.textContent = '\u25CF Work';
     modeBadge.className = 'badge';
+    miniBadge.textContent = '\u25CF Work';
+    miniBadge.className = 'mini-badge';
   }
 }
+
+// ── Mini widget (window-mode switching) ───────────────────────────────────────
+const MINI_W = 220;
+const MINI_H = 170;
+
+async function showMini() {
+  if (isMiniMode) return;
+  // Save current window geometry
+  const size = await WindowGetSize();
+  const pos  = await WindowGetPosition();
+  savedWindowState = { width: size.w, height: size.h, x: pos.x, y: pos.y };
+
+  miniTime.textContent = fmt(remainSec);
+  miniWidget.style.display = 'flex';
+  document.body.classList.add('mini-mode');
+  isMiniMode = true;
+
+  WindowSetMinSize(MINI_W, MINI_H);
+  WindowSetSize(MINI_W, MINI_H);
+  WindowSetAlwaysOnTop(true);
+}
+
+async function hideMini() {
+  if (!isMiniMode) return;
+  document.body.classList.remove('mini-mode');
+  miniWidget.style.display = 'none';
+  isMiniMode = false;
+
+  WindowSetAlwaysOnTop(false);
+  if (savedWindowState) {
+    WindowSetMinSize(420, 580);
+    WindowSetSize(savedWindowState.width, savedWindowState.height);
+    WindowSetPosition(savedWindowState.x, savedWindowState.y);
+    savedWindowState = null;
+  }
+}
+
+document.getElementById('openMini').addEventListener('click', () => {
+  if (!isMiniMode) showMini();
+  else hideMini();
+});
+miniExpand.addEventListener('click', hideMini);
+miniClose.addEventListener('click', async () => {
+  await hideMini();
+});
+
+miniPlayPause.addEventListener('click', () => {
+  startBtn.click();
+});
+
+// Drag support for mini widget (only in overlay mode, not mini-mode)
+(function() {
+  const drag = document.getElementById('miniDrag');
+  let dx = 0, dy = 0, startX = 0, startY = 0;
+  drag.addEventListener('mousedown', (e) => {
+    if (isMiniMode) return; // window-level drag in mini mode handled by --wails-draggable
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = miniWidget.getBoundingClientRect();
+    dx = e.clientX - rect.left;
+    dy = e.clientY - rect.top;
+    function onMove(ev) {
+      const newLeft = ev.clientX - dx;
+      const newTop  = ev.clientY - dy;
+      miniWidget.style.left  = Math.max(0, Math.min(window.innerWidth  - miniWidget.offsetWidth,  newLeft)) + 'px';
+      miniWidget.style.top   = Math.max(0, Math.min(window.innerHeight - miniWidget.offsetHeight, newTop))  + 'px';
+      miniWidget.style.right = 'auto';
+    }
+    function onUp(ev) {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+})();
 
 startBtn.addEventListener('click', async () => {
   if (!isRunning) {
@@ -424,8 +527,9 @@ stopBtn.addEventListener('click', async () => {
 skipBtn.addEventListener('click', async () => {
   setRunningUI(false);
   await StopTimer().catch(console.error);
+
   if (sessionType === 'break') {
-    // Skip break → return to work ready
+    // Skip break → back to work ready
     sessionType = 'work';
     totalSec    = activeProfile ? activeProfile.durationSec : 25 * 60;
     remainSec   = totalSec;
@@ -434,9 +538,16 @@ skipBtn.addEventListener('click', async () => {
     updateModeBadge();
     await StopAudio().catch(console.error);
   } else {
-    remainSec = 0;
-    updateTimerUI(0, totalSec);
-    fillEl.style.width = '100%';
+    // Skip work → if profile has a break, start it; else reset like stop
+    fillEl.style.width = '0%';
+    if (activeProfile && activeProfile.breakDurationSec > 0) {
+      setTimeout(() => startBreak(activeProfile), 300);
+    } else {
+      totalSec  = activeProfile ? activeProfile.durationSec : 25 * 60;
+      remainSec = totalSec;
+      updateTimerUI(remainSec, totalSec);
+      await StopAudio().catch(console.error);
+    }
   }
 });
 
@@ -459,7 +570,9 @@ resumeBtn.addEventListener('click', async () => {
 profileSelect.addEventListener('change', async () => {
   const sel = profiles.find(p => p.id === profileSelect.value);
   if (!sel) return;
-  if (isRunning) { await StopTimer().catch(console.error); await StopAudio().catch(console.error); setRunningUI(false); }
+  if (isRunning) { await StopTimer().catch(console.error); setRunningUI(false); }
+  // Always stop audio when switching profiles
+  await StopAudio().catch(console.error);
   totalSec  = sel.durationSec;
   remainSec = totalSec;
   updateTimerUI(remainSec, totalSec);
@@ -490,6 +603,10 @@ document.addEventListener('keydown', (e) => {
     case 'KeyS':
       e.preventDefault();
       skipBtn.click();
+      break;
+    case 'KeyM':
+      e.preventDefault();
+      document.getElementById('openMini').click();
       break;
   }
 });
