@@ -2,6 +2,7 @@ package audio
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"focusplay/internal/infra/events"
 
 	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/effects"
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
 )
@@ -23,7 +25,8 @@ type Service struct {
 	mu      sync.Mutex
 	emitter events.Emitter
 	stopCh  chan struct{}
-	vol     float64 // 0.0 – 1.0
+	vol     float64         // 0.0 – 1.0
+	volCtrl *effects.Volume // currently-active volume control (nil when idle)
 	state   domain.AudioStatePayload
 }
 
@@ -113,12 +116,14 @@ func (s *Service) Stop() {
 		close(s.stopCh)
 		s.stopCh = nil
 	}
+	s.volCtrl = nil
 	s.mu.Unlock()
 	speaker.Clear()
 	s.emitState(domain.AudioStopped, "", "")
 }
 
 // SetVolume adjusts playback volume (0–100 from the frontend).
+// Updates take effect immediately on the currently-playing stream.
 func (s *Service) SetVolume(v int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -129,6 +134,12 @@ func (s *Service) SetVolume(v int) {
 		v = 100
 	}
 	s.vol = float64(v) / 100.0
+	if s.volCtrl != nil {
+		speaker.Lock()
+		s.volCtrl.Volume = linearToLog(s.vol)
+		s.volCtrl.Silent = s.vol == 0
+		speaker.Unlock()
+	}
 }
 
 // GetState returns the current audio state for the frontend.
@@ -155,8 +166,19 @@ func (s *Service) playFile(path string, stopCh chan struct{}) error {
 
 	_ = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 
+	// Wrap streamer with volume control so the slider has audible effect.
+	s.mu.Lock()
+	vol := &effects.Volume{
+		Streamer: streamer,
+		Base:     2,
+		Volume:   linearToLog(s.vol),
+		Silent:   s.vol == 0,
+	}
+	s.volCtrl = vol
+	s.mu.Unlock()
+
 	done := make(chan struct{})
-	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
+	speaker.Play(beep.Seq(vol, beep.Callback(func() {
 		close(done)
 	})))
 
@@ -167,6 +189,15 @@ func (s *Service) playFile(path string, stopCh chan struct{}) error {
 		speaker.Clear()
 		return nil
 	}
+}
+
+// linearToLog converts a linear volume (0.0–1.0) to a logarithmic gain
+// suitable for effects.Volume (Base 2). 1.0 → 0 dB, 0.5 → −1, 0 → silent.
+func linearToLog(v float64) float64 {
+	if v <= 0 {
+		return -6 // effectively inaudible
+	}
+	return math.Log2(v)
 }
 
 func (s *Service) emitState(state domain.AudioPlaybackState, track, info string) {

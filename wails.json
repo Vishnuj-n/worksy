@@ -9,5 +9,12 @@
   "author": {
     "name": "Vishnu J Narayanan",
     "email": "144352066+Vishnuj-n@users.noreply.github.com"
+  },
+  "info": {
+    "companyName": "Vishnu J Narayanan",
+    "productName": "FocusPlay",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2025 Vishnu J Narayanan",
+    "comments": "A glassmorphism Pomodoro timer with ambient audio"
   }
 }

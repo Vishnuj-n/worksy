@@ -306,6 +306,7 @@ startBtn.addEventListener('click', async () => {
   } else {
     setRunningUI(false);
     await PauseTimer().catch(console.error);
+    await StopAudio().catch(console.error);
   }
 });
 
@@ -334,6 +335,12 @@ resumeBtn.addEventListener('click', async () => {
   updateTimerUI(remainSec, totalSec);
   setRunningUI(true);
   await ResumeTimer(savedSession).catch(console.error);
+  // Restart audio for the resumed profile
+  const prof = profiles.find(p => p.id === savedSession.profileId);
+  if (prof && prof.musicPath && settings.autoStartAudio !== false) {
+    if (prof.shuffle) await PlayShuffleFolder(prof.musicPath).catch(console.error);
+    else              await PlayLooping(prof.musicPath).catch(console.error);
+  }
 });
 
 profileSelect.addEventListener('change', async () => {
@@ -350,8 +357,37 @@ volumeSlider.addEventListener('input', async () => {
   await SetVolume(parseInt(volumeSlider.value, 10)).catch(console.error);
 });
 
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  // Ignore when typing in inputs
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+  // Ignore when a panel is open
+  if (overlay.classList.contains('show')) return;
+
+  switch (e.code) {
+    case 'Space':
+      e.preventDefault();
+      startBtn.click();
+      break;
+    case 'Escape':
+      e.preventDefault();
+      stopBtn.click();
+      break;
+    case 'KeyS':
+      e.preventDefault();
+      skipBtn.click();
+      break;
+  }
+});
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 async function init() {
+  // Request notification permission early (WebView2 may silently deny otherwise)
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
+  }
+
   // Load settings first
   try {
     settings = await GetSettings();

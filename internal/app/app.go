@@ -51,6 +51,16 @@ func (a *App) Startup(ctx context.Context) {
 	a.profiles.Load()
 }
 
+// BeforeClose is called when the user clicks the window close button.
+// When MinimizeToTray is enabled it hides the window instead of quitting.
+func (a *App) BeforeClose(ctx context.Context) bool {
+	if a.settings.Get().MinimizeToTray {
+		runtime.WindowHide(ctx)
+		return true // prevent default close
+	}
+	return false // allow normal close
+}
+
 // ── Profile methods (bound to JS) ───────────────────────────────────────────
 
 func (a *App) LoadProfiles() []domain.Profile {

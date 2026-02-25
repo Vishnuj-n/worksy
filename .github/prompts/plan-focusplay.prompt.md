@@ -1,105 +1,86 @@
-# Plan: FocusPlay MVP Service Architecture (Go + Wails 2) - Instructions Only
+# FocusPlay — Project Status & Roadmap
 
-**TL;DR:** Build FocusPlay as Wails 2 app (Go backend + HTML/CSS/JS frontend). Four services communicate via Wails events. JSON only in ProfileManager/PersistenceService. 20MB native Windows executable.
+> Wails 2 (Go 1.23 backend + Vite/HTML/CSS/JS frontend)  
+> Single 20 MB Windows executable · 32/32 tests passing  
+> `wails dev` → hot reload · `wails build` → `build/bin/POMODORO.exe`
 
-***
+---
 
-## Steps
+## Architecture
 
-### Phase 1: Project Setup
+```
+focusplay/
+├── main.go                        Wails bootstrap
+├── internal/
+│   ├── domain/                    Pure types (no deps)
+│   │   ├── profile.go             Profile struct
+│   │   ├── session.go             SessionState, StatsData
+│   │   ├── audio.go               AudioPlaybackState, AudioStatePayload
+│   │   └── settings.go            Settings + DefaultSettings()
+│   ├── infra/
+│   │   ├── storage/json_store.go  Load / Save / DataDir (%LOCALAPPDATA%\FocusPlay\)
+│   │   └── events/emitter.go      Emitter interface, WailsEmitter, Noop
+│   ├── services/
+│   │   ├── profile/               CRUD for profiles.json
+│   │   ├── persistence/           state.json (auto-save + 24 h expiry)
+│   │   ├── timer/                 countdown, Pause/Resume/Stop, timerTicked/timerCompleted events
+│   │   ├── audio/                 MP3 loop + shuffle-folder, effects.Volume real-time control
+│   │   ├── stats/                 sessions-today, rolling streak, stats.json
+│   │   └── settings/              settings.json defaults + persistence
+│   └── app/app.go                 App struct — 40+ Wails-bound methods, BeforeClose hook
+└── frontend/
+    ├── index.html                 Main card, profile panel, settings panel, resume banner
+    ├── src/style.css              Glassmorphism, blobs, toggles (~700 lines)
+    └── src/main.js                Event-driven JS, keyboard shortcuts (~430 lines)
+```
 
-1. Initialize Wails project with vanilla template
-2. Add Go audio dependencies (go-mp3, beep, flock)
-3. Create AppData directories for profiles.json and state.json
-4. Set up project structure: app.go, models.go, services.go, frontend/
+---
 
-### Phase 2: Go Services Layer
+## Completed Features
 
-5. Define models: Profile struct, SessionState struct, AudioPlaybackState enum
+- [x] Glassmorphism UI (animated blobs, backdrop blur, Segoe UI)
+- [x] Profile management panel (CRUD, file/folder picker dialogs)
+- [x] Timer countdown with MM:SS display + progress bar
+- [x] Pause / Resume / Stop / Skip controls
+- [x] Session persistence — auto-save every 60 s, 24 h expiry, resume banner on restart
+- [x] MP3 looping + shuffle-folder playback (gopxl/beep)
+- [x] Volume slider — **real-time** via `effects.Volume` + `speaker.Lock()` (fixed B1)
+- [x] Daily stats (sessions today, streak) in footer
+- [x] Settings panel (5 prefs: volume, auto-audio, notifications, auto-next, minimize-to-tray)
+- [x] OS desktop notifications on session complete (with `requestPermission()` on boot — fixed B2)
+- [x] Minimize-to-tray (`OnBeforeClose` hides window when setting enabled)
+- [x] Audio restarts when resuming a saved session (P1.2)
+- [x] Audio stops when timer is paused (P1.3)
+- [x] Keyboard shortcuts: `Space` = start/pause, `Esc` = stop, `S` = skip
+- [x] Auto-start next timer setting wired
+- [x] wails.json product metadata block (name, version, copyright)
+- [x] 32 unit tests across all 6 services
 
-6. Implement ProfileManager:
-   - LoadProfiles(): Read profiles.json from AppData, return cached list
-   - SaveProfile(): Write single profile to profiles.json
-   - GetProfileById(): Return from memory cache only
+---
 
-7. Implement PersistenceService:
-   - LoadSessionState(): Read state.json from AppData
-   - SaveSessionState(): Write state.json every 60 seconds
-   - ClearSessionState(): Delete state.json on completion
+## Possible Future Enhancements (P3)
 
-8. Implement TimerService:
-   - Start(duration): Begin countdown with time.Timer
-   - Pause/Resume/Stop controls
-   - Emit "timerTicked" event every second with remaining time
-   - Emit "timerCompleted" event at zero
-   - Auto-save via PersistenceService every 60s
+- [ ] Custom app icon (replace default Wails icon)
+- [ ] Completion chime (short beep on `timerCompleted`)
+- [ ] Dark/light theme toggle (CSS custom properties)
+- [ ] System tray icon with right-click menu (needs third-party tray library)
+- [ ] Pomodoro cycle tracking (work / short break / long break phases)
+- [ ] Export stats to CSV
 
-9. Implement AudioService:
-   - PlayLooping(filePath): Stream MP3 with infinite loop
-   - PlayShuffleFolder(folder): Scan MP3s, shuffle, play sequentially
-   - Stop(): Halt playback immediately
-   - SetVolume(): Control playback volume
-   - Emit "audioStateChanged" events
-   - Silent fail on missing/invalid files
+---
 
-### Phase 3: Frontend (HTML/CSS/JS)
+## Commands
 
-10. Create glassmorphism UI:
-    - Large centered timer display (HH:MM:SS)
-    - Profile dropdown selector
-    - Start/Pause/Stop buttons
-    - Audio status indicator
-    - Mica backdrop blur effects
-    - Segoe UI font + Fluent spacing
+```sh
+# Development (hot reload)
+wails dev
 
-11. Frontend bindings:
-    - Call Go methods: LoadProfiles(), StartTimer(), PlayAudio()
-    - Listen to events: timerTicked, timerCompleted, audioStateChanged
-    - Format remaining seconds as MM:SS display
-    - Update UI reactively on events
+# Production build → build/bin/POMODORO.exe
+wails build
 
-### Phase 4: App Integration
+# Tests
+go test ./internal/... -v
 
-12. Main App struct lifecycle:
-    - WailsInit(): Load profiles, check resume session, start event loop
-    - Startup: Show resume prompt if valid session state exists
-    - Expose all services as bindable methods to frontend
-    - Handle all Wails events and method calls
-
-### Phase 5: Build & Deploy
-
-13. Development workflow:
-    - wails dev (hot reload frontend + Go backend)
-    - Real-time UI updates during development
-
-14. Production build:
-    - wails build (single 20MB Windows executable)
-    - Self-contained, no runtime dependencies
-
-***
-
-## Verification Checklist
-
-- Timer countdown works + persists across app restarts
-- Audio plays single MP3s and shuffled folders correctly
-- Profiles load/save from AppData JSON files
-- Session resume prompt appears on startup
-- Missing music files handled silently (no crash)
-- Glassmorphism UI responsive + modern appearance
-- Single executable runs on clean Windows 11
-
-***
-
-## Key Decisions
-
-- Wails 2: Native window frame + hot reload + Go performance
-- HTML/CSS/JS frontend: Faster modern styling than XAML
-- Event-driven: Go emits → JS subscribes (same architecture as C# plan)
-- JSON encapsulation preserved: Only two services touch JSON
-- 20MB binary: Smaller than .NET NativeAOT
-
-***
-
-**Result:** Native Windows app with modern glassmorphism UI, full FocusPlay feature parity, production-ready in one executable.
-
-**Commands:** `wails dev` → `wails build` 🚀
+# Full build check
+go build ./...
+```
