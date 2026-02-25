@@ -110,6 +110,33 @@
           <span class="slider"></span>
         </label>
       </div>
+      <div class="form-group">
+        <label>Break (minutes, 0 = no break)</label>
+        <input type="number" id="pfBreakDuration" min="0" max="60" value="0"/>
+      </div>
+      <div class="form-group">
+        <label>Break Music</label>
+        <div class="music-picker">
+          <input type="text" id="pfBreakMusicPath" placeholder="Same as work / silent" readonly/>
+          <button class="pill-btn" id="pickBreakFile">File</button>
+          <button class="pill-btn" id="pickBreakFolder">Folder</button>
+          <button class="pill-btn danger-pill" id="clearBreakMusic">&#10005;</button>
+        </div>
+      </div>
+      <div class="form-group toggle-row">
+        <label>Shuffle break folder</label>
+        <label class="toggle">
+          <input type="checkbox" id="pfBreakShuffle"/>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="form-group toggle-row">
+        <label>Default profile</label>
+        <label class="toggle">
+          <input type="checkbox" id="pfIsDefault"/>
+          <span class="slider"></span>
+        </label>
+      </div>
       <div class="form-actions">
         <button class="btn btn-primary small-btn" id="saveProfileBtn">Save</button>
         <button class="btn btn-secondary small-btn" id="cancelProfileBtn">Cancel</button>
@@ -159,6 +186,18 @@
           <div class="setting-desc">Hide window to tray on close</div>
         </div>
         <label class="toggle"><input type="checkbox" id="stMinTray"/><span class="slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-name">Theme</div>
+          <div class="setting-desc">App colour theme</div>
+        </div>
+        <select class="setting-select" id="stTheme">
+          <option value="dark">Dark</option>
+          <option value="ocean">Ocean</option>
+          <option value="forest">Forest</option>
+          <option value="minimal-black">Minimal Black</option>
+        </select>
       </div>
     </div>
     <button class="add-btn save-settings-btn" id="saveSettingsBtn">Save Settings</button>

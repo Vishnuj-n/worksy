@@ -2,11 +2,12 @@ package domain
 
 // Settings holds global app preferences persisted to settings.json.
 type Settings struct {
-	DefaultVolume      int  `json:"defaultVolume"` // 0-100
-	AutoStartAudio     bool `json:"autoStartAudio"`
-	NotifyOnComplete   bool `json:"notifyOnComplete"`
-	AutoStartNextTimer bool `json:"autoStartNextTimer"`
-	MinimizeToTray     bool `json:"minimizeToTray"`
+	DefaultVolume      int    `json:"defaultVolume"` // 0-100
+	AutoStartAudio     bool   `json:"autoStartAudio"`
+	NotifyOnComplete   bool   `json:"notifyOnComplete"`
+	AutoStartNextTimer bool   `json:"autoStartNextTimer"`
+	MinimizeToTray     bool   `json:"minimizeToTray"`
+	Theme              string `json:"theme"` // "dark" | "ocean" | "forest" | "minimal-black"
 }
 
 // DefaultSettings returns the factory defaults shown on first run.
@@ -17,5 +18,6 @@ func DefaultSettings() Settings {
 		NotifyOnComplete:   true,
 		AutoStartNextTimer: false,
 		MinimizeToTray:     false,
+		Theme:              "dark",
 	}
 }

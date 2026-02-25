@@ -7,7 +7,7 @@ import {
   CheckResumeSession, PickMusicFile, PickMusicFolder,
   GetSettings, SaveSettings,
   GetStats, RecordSessionComplete
-} from '../wailsjs/go/main/App';
+} from '../wailsjs/go/app/App';
 
 import { EventsOn } from '../wailsjs/runtime/runtime';
 
@@ -37,6 +37,11 @@ const pfDuration     = document.getElementById('pfDuration');
 const pfMusicPath    = document.getElementById('pfMusicPath');
 const pfShuffle      = document.getElementById('pfShuffle');
 const pfEditId       = document.getElementById('pfEditId');
+const pfBreakDuration  = document.getElementById('pfBreakDuration');
+const pfBreakMusicPath = document.getElementById('pfBreakMusicPath');
+const pfBreakShuffle   = document.getElementById('pfBreakShuffle');
+const pfIsDefault      = document.getElementById('pfIsDefault');
+const modeBadge        = document.getElementById('modeBadge');
 
 // Settings panel
 const settingsPanel  = document.getElementById('settingsPanel');
@@ -45,6 +50,7 @@ const stAutoAudio    = document.getElementById('stAutoAudio');
 const stNotify       = document.getElementById('stNotify');
 const stAutoNext     = document.getElementById('stAutoNext');
 const stMinTray      = document.getElementById('stMinTray');
+const stTheme        = document.getElementById('stTheme');
 const settingsSaved  = document.getElementById('settingsSaved');
 
 // ── App state ─────────────────────────────────────────────────────────────────
@@ -53,7 +59,9 @@ let settings     = {};
 let totalSec     = 25 * 60;
 let remainSec    = totalSec;
 let isRunning    = false;
-let savedSession = null;
+let savedSession  = null;
+let sessionType   = 'work'; // 'work' | 'break'
+let activeProfile = null;   // currently running profile
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(s) {
@@ -97,10 +105,10 @@ document.getElementById('closeSettings').addEventListener('click', closeAllPanel
 // ── Profile list rendering ────────────────────────────────────────────────────
 function renderProfileList() {
   profileList.innerHTML = profiles.map(p => `
-    <div class="profile-item">
+    <div class="profile-item${p.isDefault ? ' is-default' : ''}">
       <div class="profile-item-info">
-        <div class="profile-item-name">${escHtml(p.name)}</div>
-        <div class="profile-item-meta">${Math.floor(p.durationSec/60)} min${p.musicPath ? ' · ' + (p.shuffle ? 'Shuffle' : 'Loop') : ''}</div>
+        <div class="profile-item-name">${p.isDefault ? '<span class="default-star" title="Default">★</span> ' : ''}${escHtml(p.name)}</div>
+        <div class="profile-item-meta">${Math.floor(p.durationSec/60)} min${p.breakDurationSec > 0 ? ' + ' + Math.floor(p.breakDurationSec/60) + 'm break' : ''}${p.musicPath ? ' · ' + (p.shuffle ? 'Shuffle' : 'Loop') : ''}</div>
       </div>
       <div class="profile-item-actions">
         <button class="item-btn" data-id="${p.id}" data-action="edit">Edit</button>
@@ -118,12 +126,17 @@ function renderProfileList() {
   });
 }
 
-function refreshDropdown() {
+function refreshDropdown(selectDefault = false) {
   const prev = profileSelect.value;
   profileSelect.innerHTML = profiles.map(p =>
     `<option value="${p.id}">${escHtml(p.name)}</option>`
   ).join('');
-  if (profileSelect.querySelector(`option[value="${prev}"]`)) profileSelect.value = prev;
+  if (selectDefault) {
+    const def = profiles.find(p => p.isDefault);
+    profileSelect.value = def ? def.id : (profiles[0]?.id || '');
+  } else if (profileSelect.querySelector(`option[value="${prev}"]`)) {
+    profileSelect.value = prev;
+  }
   const sel = profiles.find(p => p.id === profileSelect.value) || profiles[0];
   if (sel) { totalSec = remainSec = sel.durationSec; updateTimerUI(remainSec, totalSec); }
 }
@@ -139,12 +152,16 @@ function showForm(show) {
 }
 
 function openNewForm() {
-  formTitle.textContent = 'New Profile';
-  pfName.value      = '';
-  pfDuration.value  = '25';
-  pfMusicPath.value = '';
-  pfShuffle.checked = false;
-  pfEditId.value    = '';
+  formTitle.textContent      = 'New Profile';
+  pfName.value               = '';
+  pfDuration.value           = '25';
+  pfMusicPath.value          = '';
+  pfShuffle.checked          = false;
+  pfBreakDuration.value      = '0';
+  pfBreakMusicPath.value     = '';
+  pfBreakShuffle.checked     = false;
+  pfIsDefault.checked        = false;
+  pfEditId.value             = '';
   showForm(true);
   pfName.focus();
 }
@@ -152,12 +169,16 @@ function openNewForm() {
 function openEditForm(id) {
   const p = profiles.find(x => x.id === id);
   if (!p) return;
-  formTitle.textContent = 'Edit Profile';
-  pfName.value      = p.name;
-  pfDuration.value  = Math.floor(p.durationSec / 60).toString();
-  pfMusicPath.value = p.musicPath || '';
-  pfShuffle.checked = !!p.shuffle;
-  pfEditId.value    = p.id;
+  formTitle.textContent      = 'Edit Profile';
+  pfName.value               = p.name;
+  pfDuration.value           = Math.floor(p.durationSec / 60).toString();
+  pfMusicPath.value          = p.musicPath || '';
+  pfShuffle.checked          = !!p.shuffle;
+  pfBreakDuration.value      = Math.floor((p.breakDurationSec || 0) / 60).toString();
+  pfBreakMusicPath.value     = p.breakMusicPath || '';
+  pfBreakShuffle.checked     = !!p.breakShuffle;
+  pfIsDefault.checked        = !!p.isDefault;
+  pfEditId.value             = p.id;
   showForm(true);
 }
 
@@ -179,19 +200,41 @@ document.getElementById('clearMusic').addEventListener('click', () => {
   pfShuffle.checked = false;
 });
 
+document.getElementById('pickBreakFile').addEventListener('click', async () => {
+  const path = await PickMusicFile().catch(() => '');
+  if (path) { pfBreakMusicPath.value = path; pfBreakShuffle.checked = false; }
+});
+
+document.getElementById('pickBreakFolder').addEventListener('click', async () => {
+  const path = await PickMusicFolder().catch(() => '');
+  if (path) { pfBreakMusicPath.value = path; pfBreakShuffle.checked = true; }
+});
+
+document.getElementById('clearBreakMusic').addEventListener('click', () => {
+  pfBreakMusicPath.value = '';
+  pfBreakShuffle.checked = false;
+});
+
 document.getElementById('saveProfileBtn').addEventListener('click', async () => {
-  const name = pfName.value.trim();
+  const name      = pfName.value.trim();
   if (!name) { pfName.focus(); return; }
-  const dur  = Math.max(1, parseInt(pfDuration.value, 10) || 25);
-  const id   = pfEditId.value || ('p' + Date.now());
+  const dur       = Math.max(1, parseInt(pfDuration.value, 10) || 25);
+  const breakMins = Math.max(0, parseInt(pfBreakDuration.value, 10) || 0);
+  const id        = pfEditId.value || ('p' + Date.now());
   const p = {
     id,
     name,
-    durationSec: dur * 60,
-    musicPath:   pfMusicPath.value.trim(),
-    shuffle:     !!pfShuffle.checked
+    durationSec:      dur * 60,
+    musicPath:        pfMusicPath.value.trim(),
+    shuffle:          !!pfShuffle.checked,
+    breakDurationSec: breakMins * 60,
+    breakMusicPath:   pfBreakMusicPath.value.trim(),
+    breakShuffle:     !!pfBreakShuffle.checked,
+    isDefault:        !!pfIsDefault.checked,
   };
   await SaveProfile(p).catch(console.error);
+  // If marked as default, clear isDefault on all others in local cache
+  if (p.isDefault) profiles.forEach(x => { if (x.id !== id) x.isDefault = false; });
   // Update local cache
   const idx = profiles.findIndex(x => x.id === id);
   if (idx >= 0) profiles[idx] = p; else profiles.push(p);
@@ -219,6 +262,7 @@ async function loadSettingsIntoForm() {
     stNotify.checked       = !!settings.notifyOnComplete;
     stAutoNext.checked     = !!settings.autoStartNextTimer;
     stMinTray.checked      = !!settings.minimizeToTray;
+    stTheme.value          = settings.theme || 'dark';
   } catch (e) { console.error('GetSettings failed', e); }
 }
 
@@ -228,10 +272,12 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
     autoStartAudio:     stAutoAudio.checked,
     notifyOnComplete:   stNotify.checked,
     autoStartNextTimer: stAutoNext.checked,
-    minimizeToTray:     stMinTray.checked
+    minimizeToTray:     stMinTray.checked,
+    theme:              stTheme.value || 'dark',
   };
   await SaveSettings(s).catch(console.error);
   settings = s;
+  applyTheme(s.theme);
   // Apply volume immediately
   SetVolume(s.defaultVolume).catch(() => {});
   volumeSlider.value = s.defaultVolume;
@@ -248,17 +294,34 @@ EventsOn('timerTicked', (data) => {
 
 EventsOn('timerCompleted', async () => {
   setRunningUI(false);
+  fillEl.style.width = '0%';
+
+  if (sessionType === 'work') {
+    // Work session done — record stats
+    try { updateStatsUI(await RecordSessionComplete()); } catch (_) {}
+    if (settings.notifyOnComplete) {
+      try { new Notification('FocusPlay', { body: 'Work session complete! Take a break.' }); } catch (_) {}
+    }
+    // Auto-start break if profile has one configured
+    if (activeProfile && activeProfile.breakDurationSec > 0) {
+      setTimeout(() => startBreak(activeProfile), 800);
+      return;
+    }
+  } else {
+    // Break done — switch back to work mode
+    sessionType = 'work';
+    totalSec    = activeProfile ? activeProfile.durationSec : 25 * 60;
+    updateModeBadge();
+    if (settings.notifyOnComplete) {
+      try { new Notification('FocusPlay', { body: "Break's over! Time to focus." }); } catch (_) {}
+    }
+  }
+
   remainSec = totalSec;
   updateTimerUI(remainSec, totalSec);
-  fillEl.style.width = '0%';
-  // Record the completed session and refresh footer stats
-  try { updateStatsUI(await RecordSessionComplete()); } catch (_) {}
-  if (settings.notifyOnComplete) {
-    try { new Notification('FocusPlay', { body: 'Session complete!' }); } catch (_) {}
-  }
   if (settings.autoStartNextTimer) {
-    const sel = profiles.find(p => p.id === profileSelect.value) || profiles[0];
-    if (sel) startSession(sel);
+    const next = activeProfile || profiles.find(p => p.id === profileSelect.value) || profiles[0];
+    if (next) setTimeout(() => startSession(next), 800);
   }
 });
 
@@ -287,15 +350,51 @@ function updateStatsUI(data) {
 
 // ── Timer controls ────────────────────────────────────────────────────────────
 async function startSession(profile) {
-  totalSec  = profile.durationSec;
-  remainSec = totalSec;
+  activeProfile = profile;
+  sessionType   = 'work';
+  totalSec      = profile.durationSec;
+  remainSec     = totalSec;
   updateTimerUI(remainSec, totalSec);
   setRunningUI(true);
+  updateModeBadge();
   resumeBanner.style.display = 'none';
   await StartTimer(profile.id, profile.durationSec).catch(console.error);
   if (profile.musicPath && settings.autoStartAudio !== false) {
     if (profile.shuffle) await PlayShuffleFolder(profile.musicPath).catch(console.error);
     else                 await PlayLooping(profile.musicPath).catch(console.error);
+  }
+}
+
+async function startBreak(profile) {
+  sessionType = 'break';
+  totalSec    = profile.breakDurationSec;
+  remainSec   = totalSec;
+  updateTimerUI(remainSec, totalSec);
+  setRunningUI(true);
+  updateModeBadge();
+  await StartTimer(profile.id + '-break', profile.breakDurationSec).catch(console.error);
+  if (settings.autoStartAudio !== false) {
+    if (profile.breakMusicPath) {
+      if (profile.breakShuffle) await PlayShuffleFolder(profile.breakMusicPath).catch(console.error);
+      else                      await PlayLooping(profile.breakMusicPath).catch(console.error);
+    } else {
+      await StopAudio().catch(console.error);
+    }
+  }
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme || 'dark');
+}
+
+function updateModeBadge() {
+  if (!modeBadge) return;
+  if (sessionType === 'break') {
+    modeBadge.textContent = '\u25CF Break';
+    modeBadge.className = 'badge is-break';
+  } else {
+    modeBadge.textContent = '\u25CF Work';
+    modeBadge.className = 'badge';
   }
 }
 
@@ -312,8 +411,11 @@ startBtn.addEventListener('click', async () => {
 
 stopBtn.addEventListener('click', async () => {
   setRunningUI(false);
-  remainSec = totalSec;
+  sessionType = 'work';
+  totalSec    = activeProfile ? activeProfile.durationSec : totalSec;
+  remainSec   = totalSec;
   updateTimerUI(remainSec, totalSec);
+  updateModeBadge();
   fillEl.style.width = '0%';
   await StopTimer().catch(console.error);
   await StopAudio().catch(console.error);
@@ -321,10 +423,21 @@ stopBtn.addEventListener('click', async () => {
 
 skipBtn.addEventListener('click', async () => {
   setRunningUI(false);
-  remainSec = 0;
-  updateTimerUI(0, totalSec);
-  fillEl.style.width = '100%';
   await StopTimer().catch(console.error);
+  if (sessionType === 'break') {
+    // Skip break → return to work ready
+    sessionType = 'work';
+    totalSec    = activeProfile ? activeProfile.durationSec : 25 * 60;
+    remainSec   = totalSec;
+    updateTimerUI(remainSec, totalSec);
+    fillEl.style.width = '0%';
+    updateModeBadge();
+    await StopAudio().catch(console.error);
+  } else {
+    remainSec = 0;
+    updateTimerUI(0, totalSec);
+    fillEl.style.width = '100%';
+  }
 });
 
 resumeBtn.addEventListener('click', async () => {
@@ -393,12 +506,13 @@ async function init() {
     settings = await GetSettings();
     volumeSlider.value = settings.defaultVolume ?? 70;
     SetVolume(settings.defaultVolume ?? 70).catch(() => {});
+    applyTheme(settings.theme);
   } catch (e) {}
 
   // Load profiles
   try {
     profiles = await LoadProfiles();
-    refreshDropdown();
+    refreshDropdown(true);
     renderProfileList();
   } catch (e) { console.error('LoadProfiles failed', e); }
 

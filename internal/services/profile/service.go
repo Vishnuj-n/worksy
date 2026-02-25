@@ -36,9 +36,17 @@ func (s *Service) Load() []domain.Profile {
 }
 
 // Save upserts a profile in the cache and writes profiles.json.
+// If p.IsDefault is true, all other profiles are cleared of their IsDefault flag first.
 func (s *Service) Save(p domain.Profile) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if p.IsDefault {
+		for i := range s.profiles {
+			if s.profiles[i].ID != p.ID {
+				s.profiles[i].IsDefault = false
+			}
+		}
+	}
 	for i, existing := range s.profiles {
 		if existing.ID == p.ID {
 			s.profiles[i] = p
@@ -83,7 +91,7 @@ func (s *Service) saveUnlocked() error {
 func defaultProfiles() []domain.Profile {
 	return []domain.Profile{
 		{ID: "deep-work", Name: "Deep Work — 90 min", DurationSec: 90 * 60},
-		{ID: "pomodoro", Name: "Pomodoro — 25 min", DurationSec: 25 * 60},
+		{ID: "pomodoro", Name: "Pomodoro — 25 min", DurationSec: 25 * 60, BreakDurationSec: 5 * 60, IsDefault: true},
 		{ID: "short-break", Name: "Short Break — 5 min", DurationSec: 5 * 60},
 	}
 }
