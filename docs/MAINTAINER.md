@@ -8,6 +8,7 @@ Summary of recent changes
 
 - Renamed the Wails output filename to `focusplay` in `wails.json` (was `Worksy`).
 - Removed the external JSON schema line from `wails.json` to avoid VS Code editor warnings.
+- Removed "Minimize to tray" feature and setting. The app now closes normally when "X" is clicked.
 - Added uninstaller cleanup to the NSIS installer (`build/windows/installer/project.nsi`) to remove the user data directory (`%LOCALAPPDATA%\FocusPlay`) during uninstall. This prevents stale session state from persisting across re-installs.
 - Confirmed persistence lives under the OS cache directory via `internal/infra/storage/json_store.go` which uses `os.UserCacheDir()`.
 - Built a new installer using `wails build --nsis` which produced `build/bin/focusplay.exe` and the NSIS installer.

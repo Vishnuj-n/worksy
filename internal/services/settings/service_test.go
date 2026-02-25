@@ -31,9 +31,6 @@ func TestDefaultValues(t *testing.T) {
 	if got.AutoStartNextTimer {
 		t.Error("AutoStartNextTimer should default to false")
 	}
-	if got.MinimizeToTray {
-		t.Error("MinimizeToTray should default to false")
-	}
 }
 
 func TestSaveAndGet(t *testing.T) {
@@ -43,7 +40,6 @@ func TestSaveAndGet(t *testing.T) {
 		AutoStartAudio:     false,
 		NotifyOnComplete:   false,
 		AutoStartNextTimer: true,
-		MinimizeToTray:     true,
 	}
 	if err := svc.Save(modified); err != nil {
 		t.Fatalf("Save() error: %v", err)
@@ -66,7 +62,7 @@ func TestPersistenceAcrossInstances(t *testing.T) {
 
 	s1 := &Service{filePath: fp, current: domain.DefaultSettings()}
 	s1.Save(domain.Settings{DefaultVolume: 90, AutoStartAudio: false,
-		NotifyOnComplete: true, AutoStartNextTimer: false, MinimizeToTray: true})
+		NotifyOnComplete: true, AutoStartNextTimer: false})
 
 	s2 := &Service{filePath: fp, current: domain.DefaultSettings()}
 	s2.load()
@@ -74,9 +70,6 @@ func TestPersistenceAcrossInstances(t *testing.T) {
 
 	if got.DefaultVolume != 90 {
 		t.Errorf("Persisted DefaultVolume: want 90, got %d", got.DefaultVolume)
-	}
-	if !got.MinimizeToTray {
-		t.Error("Persisted MinimizeToTray should be true")
 	}
 }
 
