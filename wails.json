@@ -1,7 +1,6 @@
 {
-  "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "focusplay",
-  "outputfilename": "Worksy",
+  "outputfilename": "focusplay",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
