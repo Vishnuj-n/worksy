@@ -282,6 +282,32 @@ body {
 .audio-sub    { font-size: 11px; color: rgba(255,255,255,.35); margin-top: 1px; }
 .volume-wrap  { display: flex; align-items: center; gap: 6px; }
 .volume-icon  { font-size: 14px; opacity: .5; }
+.mute-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 6px;
+  color: rgba(255,255,255,.55);
+  cursor: pointer;
+  padding: 3px 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .2s, border-color .2s, color .2s;
+}
+.mute-btn:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.25); }
+
+/* Break music "None" state */
+#pfBreakMusicPath.is-none {
+  color: rgba(255,120,120,.7);
+  font-style: italic;
+}
+#pfBreakMusicPath.is-none::placeholder { color: transparent; }
+
+.mute-btn.is-muted {
+  background: rgba(255,80,80,.15);
+  border-color: rgba(255,80,80,.4);
+  color: #ff6b6b;
+}
 
 input[type=range] {
   -webkit-appearance: none;

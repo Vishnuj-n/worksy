@@ -30,6 +30,7 @@ const audioDot       = document.getElementById('audioDot');
 const trackNameEl    = document.getElementById('trackName');
 const audioSubEl     = document.getElementById('audioSub');
 const volumeSlider   = document.getElementById('volumeSlider');
+const muteBtn        = document.getElementById('muteBtn');
 
 // Profile panel
 const overlay        = document.getElementById('overlay');
@@ -76,6 +77,7 @@ let sessionType   = 'work'; // 'work' | 'break'
 let activeProfile = null;   // currently running profile
 let isMiniMode    = false;  // window is in compact mini-timer mode
 let savedWindowState = null; // { width, height, x, y } before entering mini mode
+let isMuted       = false;  // when true, skip audio playback even if profile has music
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(s) {
@@ -174,6 +176,8 @@ function openNewForm() {
   pfShuffle.checked          = false;
   pfBreakDuration.value      = '0';
   pfBreakMusicPath.value     = '';
+  pfBreakMusicPath.dataset.sentinel = '';
+  pfBreakMusicPath.classList.remove('is-none');
   pfBreakShuffle.checked     = false;
   pfIsDefault.checked        = false;
   pfEditId.value             = '';
@@ -190,7 +194,9 @@ function openEditForm(id) {
   pfMusicPath.value          = p.musicPath || '';
   pfShuffle.checked          = !!p.shuffle;
   pfBreakDuration.value      = Math.floor((p.breakDurationSec || 0) / 60).toString();
-  pfBreakMusicPath.value     = p.breakMusicPath || '';
+  pfBreakMusicPath.value     = p.breakMusicPath === '__none__' ? 'No music' : (p.breakMusicPath || '');
+  pfBreakMusicPath.dataset.sentinel = p.breakMusicPath === '__none__' ? '__none__' : '';
+  pfBreakMusicPath.classList.toggle('is-none', p.breakMusicPath === '__none__');
   pfBreakShuffle.checked     = !!p.breakShuffle;
   pfIsDefault.checked        = !!p.isDefault;
   pfEditId.value             = p.id;
@@ -217,16 +223,25 @@ document.getElementById('clearMusic').addEventListener('click', () => {
 
 document.getElementById('pickBreakFile').addEventListener('click', async () => {
   const path = await PickMusicFile().catch(() => '');
-  if (path) { pfBreakMusicPath.value = path; pfBreakShuffle.checked = false; }
+  if (path) { pfBreakMusicPath.value = path; pfBreakMusicPath.dataset.sentinel = ''; pfBreakMusicPath.classList.remove('is-none'); pfBreakShuffle.checked = false; }
 });
 
 document.getElementById('pickBreakFolder').addEventListener('click', async () => {
   const path = await PickMusicFolder().catch(() => '');
-  if (path) { pfBreakMusicPath.value = path; pfBreakShuffle.checked = true; }
+  if (path) { pfBreakMusicPath.value = path; pfBreakMusicPath.dataset.sentinel = ''; pfBreakMusicPath.classList.remove('is-none'); pfBreakShuffle.checked = true; }
+});
+
+document.getElementById('breakMusicNone').addEventListener('click', () => {
+  pfBreakMusicPath.value = 'No music';
+  pfBreakMusicPath.dataset.sentinel = '__none__';
+  pfBreakMusicPath.classList.add('is-none');
+  pfBreakShuffle.checked = false;
 });
 
 document.getElementById('clearBreakMusic').addEventListener('click', () => {
   pfBreakMusicPath.value = '';
+  pfBreakMusicPath.dataset.sentinel = '';
+  pfBreakMusicPath.classList.remove('is-none');
   pfBreakShuffle.checked = false;
 });
 
@@ -243,7 +258,7 @@ document.getElementById('saveProfileBtn').addEventListener('click', async () => 
     musicPath:        pfMusicPath.value.trim(),
     shuffle:          !!pfShuffle.checked,
     breakDurationSec: breakMins * 60,
-    breakMusicPath:   pfBreakMusicPath.value.trim(),
+    breakMusicPath:   pfBreakMusicPath.dataset.sentinel === '__none__' ? '__none__' : pfBreakMusicPath.value.trim(),
     breakShuffle:     !!pfBreakShuffle.checked,
     isDefault:        !!pfIsDefault.checked,
   };
@@ -376,7 +391,7 @@ async function startSession(profile) {
   updateModeBadge();
   resumeBanner.style.display = 'none';
   await StartTimer(profile.id, profile.durationSec).catch(console.error);
-  if (profile.musicPath && settings.autoStartAudio !== false) {
+  if (!isMuted && profile.musicPath && settings.autoStartAudio !== false) {
     if (profile.shuffle) await PlayShuffleFolder(profile.musicPath).catch(console.error);
     else                 await PlayLooping(profile.musicPath).catch(console.error);
   }
@@ -390,15 +405,20 @@ async function startBreak(profile) {
   setRunningUI(true);
   updateModeBadge();
   await StartTimer(profile.id + '-break', profile.breakDurationSec).catch(console.error);
-  if (settings.autoStartAudio !== false) {
-    // Use break music if set, otherwise fall back to work music
-    const musicPath = profile.breakMusicPath || profile.musicPath;
-    const shuffle   = profile.breakMusicPath ? profile.breakShuffle : profile.shuffle;
-    if (musicPath) {
-      if (shuffle) await PlayShuffleFolder(musicPath).catch(console.error);
-      else         await PlayLooping(musicPath).catch(console.error);
-    } else {
+  if (!isMuted && settings.autoStartAudio !== false) {
+    if (profile.breakMusicPath === '__none__') {
+      // Explicitly no music for break
       await StopAudio().catch(console.error);
+    } else {
+      // Use break music if set, otherwise fall back to work music
+      const musicPath = profile.breakMusicPath || profile.musicPath;
+      const shuffle   = profile.breakMusicPath ? profile.breakShuffle : profile.shuffle;
+      if (musicPath) {
+        if (shuffle) await PlayShuffleFolder(musicPath).catch(console.error);
+        else         await PlayLooping(musicPath).catch(console.error);
+      } else {
+        await StopAudio().catch(console.error);
+      }
     }
   }
 }
@@ -558,7 +578,7 @@ resumeBtn.addEventListener('click', async () => {
   await ResumeTimer(savedSession).catch(console.error);
   // Restart audio for the resumed profile
   const prof = profiles.find(p => p.id === savedSession.profileId);
-  if (prof && prof.musicPath && settings.autoStartAudio !== false) {
+  if (!isMuted && prof && prof.musicPath && settings.autoStartAudio !== false) {
     if (prof.shuffle) await PlayShuffleFolder(prof.musicPath).catch(console.error);
     else              await PlayLooping(prof.musicPath).catch(console.error);
   }
@@ -578,6 +598,23 @@ profileSelect.addEventListener('change', async () => {
 
 volumeSlider.addEventListener('input', async () => {
   await SetVolume(parseInt(volumeSlider.value, 10)).catch(console.error);
+});
+
+// ── Mute toggle ───────────────────────────────────────────────────────────────
+function updateMuteUI() {
+  muteBtn.classList.toggle('is-muted', isMuted);
+  muteBtn.title = isMuted ? 'Unmute — re-enable music' : 'Mute — no music will play';
+  muteBtn.querySelector('.mute-icon-on').style.display  = isMuted ? 'none' : '';
+  muteBtn.querySelector('.mute-icon-off').style.display = isMuted ? '' : 'none';
+}
+
+muteBtn.addEventListener('click', async () => {
+  isMuted = !isMuted;
+  updateMuteUI();
+  if (isMuted && isRunning) {
+    // Stop any currently playing audio immediately
+    await StopAudio().catch(console.error);
+  }
 });
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
