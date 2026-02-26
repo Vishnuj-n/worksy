@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -26,8 +27,13 @@ func Save(path string, v any) error {
 
 // DataDir returns (and creates) the FocusPlay data directory under the OS cache dir.
 func DataDir() string {
-	base, _ := os.UserCacheDir() // %LOCALAPPDATA% on Windows
+	base, err := os.UserCacheDir() // %LOCALAPPDATA% on Windows
+	if err != nil {
+		fmt.Printf("Error getting user cache dir: %v\n", err)
+	}
 	dir := filepath.Join(base, "FocusPlay")
-	_ = os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Printf("Error creating data dir %s: %v\n", dir, err)
+	}
 	return dir
 }

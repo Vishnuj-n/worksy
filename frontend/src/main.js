@@ -6,7 +6,8 @@ import {
   PlayLooping, PlayShuffleFolder, StopAudio, SetVolume, GetAudioState,
   CheckResumeSession, PickMusicFile, PickMusicFolder,
   GetSettings, SaveSettings,
-  GetStats, RecordSessionComplete
+  GetStats, RecordSessionComplete,
+  ResetAllData
 } from '../wailsjs/go/app/App';
 
 import { EventsOn } from '../wailsjs/runtime/runtime';
@@ -297,6 +298,24 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
   // Show saved indicator
   settingsSaved.style.display = 'block';
   setTimeout(() => settingsSaved.style.display = 'none', 1800);
+});
+
+document.getElementById('resetDataBtn').addEventListener('click', async () => {
+  if (!confirm('Reset all data (profiles, stats, session)? Settings are preserved.')) return;
+  await ResetAllData().catch(console.error);
+
+  // Refresh UI
+  setRunningUI(false);
+  fillEl.style.width = '0%';
+
+  profiles = await LoadProfiles().catch(() => []);
+  renderProfileList();
+  refreshDropdown(true); // Select default
+
+  try { updateStatsUI(await GetStats()); } catch (e) {}
+
+  closeAllPanels();
+  alert('All data has been reset.');
 });
 
 // ── Wails events ──────────────────────────────────────────────────────────────

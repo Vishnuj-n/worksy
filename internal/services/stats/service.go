@@ -1,6 +1,8 @@
 package stats
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -62,6 +64,16 @@ func (ss *Service) RecordSessionComplete() domain.StatsData {
 	return ss.data
 }
 
+// Reset clears all stats.
+func (ss *Service) Reset() domain.StatsData {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	_ = os.Remove(ss.filePath)
+	ss.data = domain.StatsData{Date: todayStr()}
+	ss.save()
+	return ss.data
+}
+
 // ── internal ──────────────────────────────────────────────────────────────────
 
 func todayStr() string {
@@ -86,5 +98,7 @@ func (ss *Service) load() {
 }
 
 func (ss *Service) save() {
-	_ = storage.Save(ss.filePath, ss.data)
+	if err := storage.Save(ss.filePath, ss.data); err != nil {
+		fmt.Printf("Error saving stats: %v\n", err)
+	}
 }

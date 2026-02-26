@@ -57,9 +57,8 @@
 ### ✅ P1.3 Stop audio on timer pause
 - **FIXED:** Pause handler now calls `StopAudio()` alongside `PauseTimer()`.
 
-### P1.4 Auto-start next session has no break interval
-- **Status:** `autoStartNextTimer` immediately restarts the same profile — no break concept.
-- **Fix:** Defer to P3 (work/break cycle) or add a simple 5-minute cooldown.
+### ✅ P1.4 Auto-start next session has no break interval
+- **FIXED:** `timerCompleted` handler checks `activeProfile.breakDurationSec` and starts a break if configured, then resumes work session after break.
 
 ---
 

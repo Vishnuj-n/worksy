@@ -32,6 +32,10 @@ type Service struct {
 
 // New creates a Service. Call SetEmitter after the Wails context is available.
 func New() *Service {
+	// Initialize speaker once at 44.1kHz
+	sr := beep.SampleRate(44100)
+	_ = speaker.Init(sr, sr.N(time.Second/10))
+
 	return &Service{
 		vol:     0.7,
 		emitter: events.Noop{},
@@ -175,12 +179,14 @@ func (s *Service) playFile(path string, stopCh chan struct{}) error {
 	}
 	defer streamer.Close()
 
-	_ = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	// Resample to standard rate (44.1kHz) to avoid re-initializing speaker
+	sr := beep.SampleRate(44100)
+	resampled := beep.ResampleRatio(4, format.SampleRate, sr, streamer)
 
 	// Wrap streamer with volume control so the slider has audible effect.
 	s.mu.Lock()
 	vol := &effects.Volume{
-		Streamer: streamer,
+		Streamer: resampled,
 		Base:     2,
 		Volume:   linearToLog(s.vol),
 		Silent:   s.vol == 0,

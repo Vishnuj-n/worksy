@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -82,6 +83,15 @@ func (s *Service) Delete(id string) error {
 	}
 	s.profiles = filtered
 	return s.saveUnlocked()
+}
+
+// Reset clears all profiles and restores defaults.
+func (s *Service) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_ = os.Remove(s.filePath)
+	s.profiles = defaultProfiles()
+	_ = s.saveUnlocked()
 }
 
 func (s *Service) saveUnlocked() error {

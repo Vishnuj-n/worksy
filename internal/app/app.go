@@ -161,3 +161,13 @@ func (a *App) GetSettings() domain.Settings {
 func (a *App) SaveSettings(s domain.Settings) error {
 	return a.settings.Save(s)
 }
+
+// ── Data management (bound to JS) ───────────────────────────────────────────
+
+func (a *App) ResetAllData() {
+	a.timer.Stop()
+	a.audio.Stop()
+	a.persistence.Clear()
+	a.profiles.Reset()
+	a.stats.Reset()
+}

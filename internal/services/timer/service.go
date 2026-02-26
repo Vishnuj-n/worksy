@@ -123,6 +123,10 @@ func (s *Service) run(ctx context.Context) {
 
 		case <-autosave.C:
 			s.mu.Lock()
+			if ctx.Err() != nil {
+				s.mu.Unlock()
+				return
+			}
 			_ = s.persistence.Save(domain.SessionState{
 				ProfileID:    s.profileID,
 				TotalSec:     s.totalSec,
@@ -132,6 +136,10 @@ func (s *Service) run(ctx context.Context) {
 
 		case <-ticker.C:
 			s.mu.Lock()
+			if ctx.Err() != nil {
+				s.mu.Unlock()
+				return
+			}
 			if s.remainSec > 0 {
 				s.remainSec--
 				remaining := s.remainSec
