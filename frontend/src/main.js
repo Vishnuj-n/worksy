@@ -62,7 +62,6 @@ const stVolume       = document.getElementById('stVolume');
 const stAutoAudio    = document.getElementById('stAutoAudio');
 const stNotify       = document.getElementById('stNotify');
 const stAutoNext     = document.getElementById('stAutoNext');
-const stMinTray      = document.getElementById('stMinTray');
 const stTheme        = document.getElementById('stTheme');
 const settingsSaved  = document.getElementById('settingsSaved');
 
@@ -277,7 +276,6 @@ async function loadSettingsIntoForm() {
     stAutoAudio.checked    = !!settings.autoStartAudio;
     stNotify.checked       = !!settings.notifyOnComplete;
     stAutoNext.checked     = !!settings.autoStartNextTimer;
-    stMinTray.checked      = !!settings.minimizeToTray;
     stTheme.value          = settings.theme || 'dark';
   } catch (e) { console.error('GetSettings failed', e); }
 }
@@ -288,7 +286,6 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
     autoStartAudio:     stAutoAudio.checked,
     notifyOnComplete:   stNotify.checked,
     autoStartNextTimer: stAutoNext.checked,
-    minimizeToTray:     stMinTray.checked,
     theme:              stTheme.value || 'dark',
   };
   await SaveSettings(s).catch(console.error);

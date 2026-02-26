@@ -7,7 +7,7 @@
 |----------|-------|--------|
 | **Core Features (18)** | 18/18 | ✅ Complete |
 | **P0 Bugs** | 2/2 | ✅ Fixed |
-| **P1 Partial Wiring** | 3/4 | 75% Done |
+| **P1 Partial Wiring** | 3/4 | ✅ Done (1 Removed) |
 | **P2 New Features** | 2/4 | 50% Done |
 | **P3 Nice-to-Have** | — | Not started |
 
@@ -24,7 +24,7 @@
 | 7 | Volume control (slider + settings default) | `audio/SetVolume` + frontend |
 | 8 | Session persistence (auto-save every 60s, 24h expiry) | `internal/services/persistence/` |
 | 9 | Session resume on startup (banner + Resume button) | `frontend/src/main.js init()` |
-| 10 | Settings panel (5 toggles + volume slider, persisted) | `internal/services/settings/` |
+| 10 | Settings panel (4 toggles + volume slider, persisted) | `internal/services/settings/` |
 | 11 | Stats tracking (sessions today, streak, day rollover) | `internal/services/stats/` |
 | 12 | Glassmorphism UI (animated blobs, blur, glass card) | `frontend/src/style.css` |
 | 13 | Native file/folder picker dialogs | `app.go PickMusicFile/PickMusicFolder` |
@@ -48,8 +48,8 @@
 
 ## Partially Wired (P1) — MOSTLY COMPLETE ✅
 
-### ✅ P1.1 Wire minimize-to-tray
-- **FIXED:** Added `OnBeforeClose` handler in `main.go` that calls `runtime.WindowHide()` when `MinimizeToTray` setting is enabled.
+### ❌ P1.1 Wire minimize-to-tray
+- **REMOVED:** Feature removed in favor of global hotkey/standard window behavior. Code deleted from backend & frontend.
 
 ### ✅ P1.2 Resume audio on session resume
 - **FIXED:** Resume button now looks up profile's music path and calls `PlayLooping`/`PlayShuffleFolder`.

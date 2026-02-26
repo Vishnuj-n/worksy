@@ -6,7 +6,6 @@ type Settings struct {
 	AutoStartAudio     bool   `json:"autoStartAudio"`
 	NotifyOnComplete   bool   `json:"notifyOnComplete"`
 	AutoStartNextTimer bool   `json:"autoStartNextTimer"`
-	MinimizeToTray     bool   `json:"minimizeToTray"`
 	Theme              string `json:"theme"` // "dark" | "ocean" | "forest" | "minimal-black"
 }
 
@@ -17,7 +16,6 @@ func DefaultSettings() Settings {
 		AutoStartAudio:     true,
 		NotifyOnComplete:   true,
 		AutoStartNextTimer: false,
-		MinimizeToTray:     false,
 		Theme:              "dark",
 	}
 }
