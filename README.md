@@ -1,3 +1,5 @@
+![FocusPlay Logo](logo.png)
+
 # FocusPlay — Pomodoro Timer
 
 **v1.0.0** | A lightweight Pomodoro timer application built with Wails and Go.
