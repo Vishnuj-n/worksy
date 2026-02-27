@@ -1,5 +1,6 @@
-![FocusPlay Logo](logo.png)
-
+<p align="center">
+  <img src="logo.png" width="200">
+</p>
 # FocusPlay
 
 **v1.0.0** | A lightweight, distraction-free Pomodoro timer built with Wails and Go.
