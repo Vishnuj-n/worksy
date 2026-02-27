@@ -1,56 +1,122 @@
 ![FocusPlay Logo](logo.png)
 
-# FocusPlay — Pomodoro Timer
+# FocusPlay
 
-**v1.0.0** | A lightweight Pomodoro timer application built with Wails and Go.
+**v1.0.0** | A lightweight, distraction-free Pomodoro timer built with Wails and Go.
 
-## About
-
-FocusPlay is a distraction-free Pomodoro timer that helps you manage work sessions with customizable breaks and background music/playlists. The app persists your session history and supports multiple user profiles with independent preferences.
+FocusPlay helps you manage work sessions with customizable profiles, background music, and session tracking. It's designed to help you stay focused while providing a pleasant, customizable environment.
 
 ## Features
 
-- **Pomodoro workflow**: Start, pause, stop sessions with customizable work and break durations
-- **Multiple profiles**: Create and manage independent user profiles with separate settings
-- **Session persistence**: Automatically saves progress; resume your work across app restarts
-- **Background music/playlists**: Play looping single tracks or shuffle folder playlists during work sessions
-- **Statistics**: Track session counts and productivity metrics
-- **Windows installer**: Built with NSIS for easy installation and cleanup
+- **Pomodoro Workflow**: Customizable work and break durations.
+- **Profiles**: Create multiple profiles (e.g., "Deep Work", "Reading") with independent settings.
+- **Background Audio**:
+  - Play looping single tracks or shuffle entire music folders.
+  - Separate audio settings for work and break sessions.
+  - Supports MP3 files.
+- **Mini Timer Mode**: A compact, always-on-top widget to keep track of time without distractions.
+- **Session Persistence**: Automatically saves progress; resume your work exactly where you left off if the app closes.
+- **Themes**: Choose from Dark, Ocean, Forest, or Minimal Black themes.
+- **Statistics**: Track daily sessions and streak counts.
+- **Smart Settings**: Auto-start next timer, auto-play audio, and desktop notifications.
 
-## Quick Start
+## Project Structure
 
-1. Download the Windows installer from `build/windows/installer/` or the latest release
-2. Run the installer to install FocusPlay
-3. Launch the app and start your first Pomodoro session
+```
+├── build/             # Build artifacts and installer scripts
+├── docs/              # Detailed documentation
+├── frontend/          # Vite + Vanilla JS frontend
+│   ├── src/           # UI source code (HTML, CSS, JS)
+│   └── wailsjs/       # Auto-generated Go bindings
+├── internal/          # Go backend code
+│   ├── app/           # Main application logic and Wails binding
+│   ├── services/      # Core services (Timer, Audio, Persistence, etc.)
+│   └── infra/         # Infrastructure (Storage, Events)
+└── main.go            # Application entry point
+```
 
-Alternatively, to build from source:
-- Go 1.19 or later
-- Node.js 16+
-- Wails CLI: `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
+## Prerequisites
 
-You can configure the project by editing `wails.json`. More information about the project settings can be found
-here: https://wails.io/docs/reference/project-config
+- **Go 1.23+**
+- **Node.js 18+**
+- **Wails CLI**: `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
 
-## Development
+## Installation
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide hot reload of your frontend changes. The app will also reload backend changes with live rebuild.
+### Windows (Installer)
+1. Download the latest installer from the Releases page (or `build/bin/` if built locally).
+2. Run the installer (`.exe`).
+3. Launch FocusPlay from your Start Menu.
 
-## Building
+### Building from Source
 
-To build a production binary, run `wails build`. The output is generated in `build/bin/`.
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/focusplay.git
+   cd focusplay
+   ```
 
-Windows installer (NSIS): `wails build --nsis`
+2. **Install dependencies:**
+   ```bash
+   go mod tidy
+   cd frontend && npm install && cd ..
+   ```
+
+3. **Build the application:**
+   - **Windows:**
+     ```bash
+     wails build --nsis
+     ```
+     *Output: `build/bin/focusplay.exe` and installer.*
+
+   - **macOS:**
+     ```bash
+     wails build --platform darwin/universal
+     ```
+
+   - **Linux:**
+     ```bash
+     wails build --platform linux/amd64
+     ```
+
+4. **Run Development Mode:**
+   ```bash
+   wails dev
+   ```
+   *Starts the app with hot-reload for frontend changes.*
+
+## Usage
+
+### Keyboard Shortcuts
+- **Space**: Start / Pause timer
+- **Esc**: Stop timer
+- **S**: Skip current session (or break)
+- **M**: Toggle Mini Timer mode
+
+### Managing Profiles
+Click the **Profiles** icon (top-left) to create or edit profiles. You can set specific durations for work/break and assign specific music files or folders to each.
+
+### Settings
+Click the **Settings** icon (gear) to configure:
+- Default volume
+- Auto-start audio behavior
+- Notifications
+- Auto-start next session
+- App Theme
+
+## Architecture
+
+FocusPlay is built using the **Wails** framework, which combines the power of Go for the backend with web technologies for the frontend.
+
+- **Backend (Go)**: Handles the timer logic, audio playback (using `gopxl/beep`), file system interactions, and data persistence.
+- **Frontend (HTML/CSS/JS)**: Provides the user interface, communicating with the backend via Wails' unified bindings.
 
 ## Documentation
 
-Complete project documentation is available in the `docs/` directory:
-
-- **[INSTALLATION.md](docs/INSTALLATION.md)** — Platform-specific setup and troubleshooting
-- **[USAGE.md](docs/USAGE.md)** — User guide and feature documentation  
-- **[CHANGELOG.md](docs/CHANGELOG.md)** — Version history and release notes
-- **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** — How to contribute to the project
-- **[MAINTAINER.md](docs/MAINTAINER.md)** — Maintainer notes and development practices
+- **[INSTALLATION.md](docs/INSTALLATION.md)**: Detailed build and installation steps.
+- **[USAGE.md](docs/USAGE.md)**: Comprehensive user guide.
+- **[CONTRIBUTING.md](docs/CONTRIBUTING.md)**: Guidelines for contributing.
+- **[CHANGELOG.md](docs/CHANGELOG.md)**: Version history.
 
 ## License
 
